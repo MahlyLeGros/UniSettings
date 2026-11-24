@@ -23,11 +23,6 @@ loom {
     if (aw.exists()) {
         accessWidenerPath.set(aw)
     }
-    if (!unobfuscated) {
-        mixin {
-            defaultRefmapName.set("${mod_id}.refmap.json")
-        }
-    }
     runs {
         client {
             client()

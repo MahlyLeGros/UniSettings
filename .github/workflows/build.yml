@@ -33,9 +33,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
       # Jar 1 : Minecraft 1.14.4 à 1.21.11 (plus tests du code commun)
-      - run: ./gradlew build
+      - run: ./gradlew build || ./gradlew build
       # Jar 2 : Minecraft 26.1 et plus
-      - run: ./gradlew :fabric:build -Pmc=26.1
+      - run: ./gradlew :fabric:build -Pmc=26.1 || ./gradlew :fabric:build -Pmc=26.1
       - uses: actions/upload-artifact@v4
         with:
           name: unisettings-fabric
@@ -62,21 +62,23 @@ jobs:
         with:
           cache-read-only: true
       - run: chmod +x gradlew
-      - run: ./gradlew :fabric:assemble -Pmc=${{ matrix.mc }} -x javadoc
-      # Pour 1.14.4 à 1.21.11 : la "refmap" dit à Fabric quels noms internes viser.
-      # Si elle est identique pour toutes ces versions, le même jar marche partout.
-      - name: Extraire la refmap
+      # 2e essai si un dépôt Maven a un raté réseau
+      - run: ./gradlew :fabric:assemble -Pmc=${{ matrix.mc }} -x javadoc || ./gradlew :fabric:assemble -Pmc=${{ matrix.mc }} -x javadoc
+      # Pour 1.14.4 à 1.21.11 : Loom écrit dans le mixin les noms internes de Fabric ("intermediary")
+      # des éléments visés. S'ils sont identiques pour toutes ces versions, le même jar marche partout.
+      - name: Noms visés par le mixin
         if: startsWith(matrix.mc, '1.')
         run: |
-          mkdir -p refmap
+          mkdir -p targets
           jar=$(ls fabric/build/libs/*.jar | grep -v -e sources -e javadoc | head -1)
-          unzip -p "$jar" unisettings.refmap.json | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin), indent=2, sort_keys=True))' > "refmap/${{ matrix.mc }}.json"
-          cat "refmap/${{ matrix.mc }}.json"
+          javap -v -p -cp "$jar" io.github.mahlylegros.unisettings.mixin.OptionsMixin \
+            | grep -E '= Utf8 .*(class|field|method)_[0-9]+' | sed 's/.*= Utf8 *//' | sort -u > "targets/${{ matrix.mc }}.txt"
+          cat "targets/${{ matrix.mc }}.txt"
       - if: startsWith(matrix.mc, '1.')
         uses: actions/upload-artifact@v4
         with:
-          name: refmap-${{ matrix.mc }}
-          path: refmap/
+          name: targets-${{ matrix.mc }}
+          path: targets/
 
   same-jar:
     name: Un seul jar pour 1.14.4 à 1.21.11 ?
@@ -85,17 +87,17 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: refmap-*
-          path: refmap
+          pattern: targets-*
+          path: targets
           merge-multiple: true
       - run: |
-          ls refmap
-          ref=refmap/1.21.11.json
-          grep -q "field_" "$ref" && grep -q "method_" "$ref" || { echo "Refmap incomplète"; cat "$ref"; exit 1; }
+          ls targets
+          ref=targets/1.21.11.txt
+          grep -q "field_" "$ref" && grep -q "method_" "$ref" || { echo "Noms introuvables"; cat "$ref"; exit 1; }
           status=0
-          for f in refmap/*.json; do
+          for f in targets/*.txt; do
             if ! diff -u "$ref" "$f"; then
-              echo "::error::$(basename "$f" .json) a une refmap différente de 1.21.11"
+              echo "::error::Minecraft $(basename "$f" .txt) vise d'autres noms que 1.21.11"
               status=1
             fi
           done
