@@ -37,6 +37,8 @@ jobs:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
       - run: chmod +x gradlew
       # Jar 1 : Minecraft 1.14.4 à 1.21.11 (plus tests du code commun)
       - run: ./gradlew build || ./gradlew build
