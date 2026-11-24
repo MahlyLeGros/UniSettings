@@ -23,7 +23,10 @@ tasks.named('compileJava', JavaCompile) {
 }
 
 repositories {
-    mavenCentral()
+    mavenCentral {
+        // Minecraft est fourni par Loom en local : inutile (et risqué, à cause des 429) de le demander à Maven Central.
+        content { excludeGroupAndSubgroups('net.minecraft') }
+    }
     // Tout ce qui est Fabric (intermediary, loader, API...) vient seulement du maven Fabric :
     // sinon Gradle le cherche d'abord sur Maven Central, qui répond parfois "429 Too Many Requests".
     exclusiveContent {
