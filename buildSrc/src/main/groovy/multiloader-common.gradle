@@ -96,7 +96,6 @@ processResources {
             'fabric_loader_min'            : fabric_loader_min,
             'mixin_compat'                 : mixin_compat,
             'target_java'                  : target_java,
-            'fabric_version'               : fabric_version,
             'fabric_loader_version'        : fabric_loader_version,
             'mod_name'                     : mod_name,
             'mod_author'                   : mod_author,
