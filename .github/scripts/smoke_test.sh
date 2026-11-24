@@ -63,6 +63,15 @@ grep -aiE "unisettings|mixin.*(error|fail)|exception" "$LOG" | head -50 || true
 if [ -z "$ok" ]; then
   echo "----- Fin du journal -----"
   tail -80 "$LOG"
+  # Le journal complet du jeu (plus détaillé que la console), pour comprendre l'échec
+  for f in "$WORK/game/logs/debug.log" "$WORK/game/logs/latest.log"; do
+    if [ -f "$f" ]; then
+      echo "----- $f : lignes utiles -----"
+      grep -aiE "unisettings|mixin|error|warn|exception|loading issue|modloadingissue" "$f" | grep -v "Error loading class: net/minecraft/client/GameSettings" | head -150 || true
+      break
+    fi
+  done
+  ls "$WORK/game/crash-reports" 2>/dev/null && head -60 "$WORK/game/crash-reports/"* 2>/dev/null || true
   echo "ÉCHEC : Minecraft $MC ($SPEC) n'a pas chargé le profil UniSettings"
   exit 1
 fi
