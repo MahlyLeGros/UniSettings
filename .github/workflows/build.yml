@@ -52,10 +52,13 @@ jobs:
 
   compile:
     name: Compile ${{ matrix.mc }}
-    needs: versions
+    # Après "jars", pour réutiliser son cache Gradle : sinon des dizaines de jobs téléchargent
+    # les mêmes dépendances en même temps et Maven Central répond "429 Too Many Requests".
+    needs: [versions, jars]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 10
       matrix:
         mc: ${{ fromJson(needs.versions.outputs.all) }}
     steps:
@@ -69,7 +72,7 @@ jobs:
           cache-read-only: true
       - run: chmod +x gradlew
       # 2e essai si un dépôt Maven a un raté réseau
-      - run: ./gradlew :fabric:assemble -Pmc=${{ matrix.mc }} -x javadoc || ./gradlew :fabric:assemble -Pmc=${{ matrix.mc }} -x javadoc
+      - run: ./gradlew :fabric:assemble -Pmc=${{ matrix.mc }} -x javadoc || (sleep 30 && ./gradlew :fabric:assemble -Pmc=${{ matrix.mc }} -x javadoc)
       # Pour 1.14.4 à 1.21.11 : Loom écrit dans le mixin les noms internes de Fabric ("intermediary")
       # des éléments visés. S'ils sont identiques pour toutes ces versions, le même jar marche partout.
       - name: Noms visés par le mixin
