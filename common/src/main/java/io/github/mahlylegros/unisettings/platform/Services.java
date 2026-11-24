@@ -12,6 +12,13 @@ import java.util.ServiceLoader;
  */
 public final class Services {
 
+    /** Les implémentations de chaque loader, au cas où ServiceLoader ne les trouve pas.
+     *  Déclaré avant PLATFORM : sinon il vaudrait encore null quand PLATFORM est calculé. */
+    private static final String[] KNOWN_IMPLEMENTATIONS = {
+            "io.github.mahlylegros.unisettings.platform.ForgePlatformHelper",
+            "io.github.mahlylegros.unisettings.platform.FabricPlatformHelper"
+    };
+
     public static final IPlatformHelper PLATFORM = load(IPlatformHelper.class);
 
     private Services() {}
@@ -37,12 +44,6 @@ public final class Services {
         Constants.LOG.debug("Loaded {} for service {}", loadedService, clazz);
         return loadedService;
     }
-
-    /** Les implémentations de chaque loader, au cas où ServiceLoader ne les trouve pas. */
-    private static final String[] KNOWN_IMPLEMENTATIONS = {
-            "io.github.mahlylegros.unisettings.platform.ForgePlatformHelper",
-            "io.github.mahlylegros.unisettings.platform.FabricPlatformHelper"
-    };
 
     private static <T> T loadKnown(Class<T> clazz) {
         for (String name : KNOWN_IMPLEMENTATIONS) {

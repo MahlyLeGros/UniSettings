@@ -24,6 +24,13 @@ printf 'fov:0.75\nlang:fr_fr\nunisettingsSmokeTest:ok\n' > "$XDG_CONFIG_HOME/uni
 # Une instance qui a déjà ses propres réglages, différents
 printf 'fov:0.0\nlang:en_us\n' > "$WORK/game/options.txt"
 
+# Forge ouvre sa propre fenêtre de chargement avant celle du jeu, ce qui casse l'OpenGL de
+# l'écran virtuel sur les versions récentes : on la désactive (sans effet sur le mod testé).
+if [ "$LOADER" = forge ]; then
+  mkdir -p "$WORK/game/config"
+  printf 'earlyWindowControl = false\n' > "$WORK/game/config/fml.toml"
+fi
+
 export LIBGL_ALWAYS_SOFTWARE=1
 xvfb-run -a -s "-screen 0 1280x720x24" \
   portablemc --main-dir "$WORK/main" --work-dir "$WORK/game" \
