@@ -11,6 +11,9 @@ java {
     toolchain.languageVersion = JavaLanguageVersion.of(java_version)
     withSourcesJar()
     withJavadocJar()
+    // Sinon Gradle refuse les dépendances (Minecraft, NeoForm...) "pour Java 21" alors que
+    // notre bytecode vise Java 8.
+    disableAutoTargetJvm()
 }
 
 // Le JDK est récent (java_version), mais le bytecode du mod vise une vieille version de Java
