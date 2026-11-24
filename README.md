@@ -10,7 +10,13 @@ et chaque instance le charge au lancement.
 | macOS | `~/Library/Application Support/UniSettings` |
 | Linux | `~/.config/unisettings` |
 
-**Statut :** squelette (le mod se charge et affiche l'emplacement du profil dans les logs, sans rien synchroniser encore).
+## Fonctionnement
+
+- **Au lancement**, juste avant que Minecraft lise `options.txt`, le mod copie le profil dans l'instance.
+  L'ancien `options.txt` de l'instance est gardé une fois sous `options.txt.unisettings-backup`.
+- **Quand tu changes un réglage**, Minecraft réécrit `options.txt` et le mod met le profil à jour.
+  Les lignes que l'instance ne connaît pas (par exemple les touches d'un mod absent) sont conservées.
+- **Premier lancement :** s'il n'y a pas encore de profil, il est créé à partir de l'instance actuelle.
 
 ## Versions
 
@@ -29,6 +35,6 @@ La structure vient du [MultiLoader-Template](https://github.com/jaredlll08/Multi
 ## Compiler et tester
 
 ```bash
-./gradlew build                 # le .jar sort dans fabric/build/libs/
+./gradlew build                 # compile + tests, le .jar sort dans fabric/build/libs/
 ./gradlew :fabric:runClient     # lance Minecraft avec le mod
 ```
