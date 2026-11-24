@@ -1,14 +1,21 @@
 plugins {
     id 'multiloader-loader'
-    id 'fabric-loom'
 }
+
+// Minecraft 1.14.4 à 1.21.11 : le code du jeu est obfusqué, Loom doit renommer ("remap") le mod.
+// Minecraft 26.1 et plus : plus d'obfuscation, donc plus de renommage (voir build.gradle à la racine).
+apply plugin: (unobfuscated ? 'net.fabricmc.fabric-loom' : 'net.fabricmc.fabric-loom-remap')
+
 dependencies {
-    minecraft "com.mojang:minecraft:${minecraft_version}"
-    mappings loom.layered {
-        officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-${parchment_minecraft}:${parchment_version}@zip")
+    minecraft "com.mojang:minecraft:${mc}"
+    if (unobfuscated) {
+        implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    } else {
+        // Les noms officiels de Mojang (Parchment n'ajoute que des noms de paramètres, inutiles ici
+        // et absents des vieilles versions).
+        mappings loom.officialMojangMappings()
+        modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
     }
-    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
 }
 
 loom {
@@ -16,8 +23,10 @@ loom {
     if (aw.exists()) {
         accessWidenerPath.set(aw)
     }
-    mixin {
-        defaultRefmapName.set("${mod_id}.refmap.json")
+    if (!unobfuscated) {
+        mixin {
+            defaultRefmapName.set("${mod_id}.refmap.json")
+        }
     }
     runs {
         client {

@@ -1,6 +1,7 @@
 package io.github.mahlylegros.unisettings;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Locale;
 
 /**
@@ -17,18 +18,18 @@ public final class ProfilePaths {
 
     public static Path profileDirectory() {
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        Path home = Path.of(System.getProperty("user.home"));
+        Path home = Paths.get(System.getProperty("user.home"));
 
         if (os.contains("win")) {
             String appData = System.getenv("APPDATA");
-            Path base = (appData != null && !appData.isBlank()) ? Path.of(appData) : home.resolve("AppData").resolve("Roaming");
+            Path base = (appData != null && !appData.trim().isEmpty()) ? Paths.get(appData) : home.resolve("AppData").resolve("Roaming");
             return base.resolve("UniSettings");
         }
         if (os.contains("mac")) {
             return home.resolve("Library").resolve("Application Support").resolve("UniSettings");
         }
         String xdg = System.getenv("XDG_CONFIG_HOME");
-        Path base = (xdg != null && !xdg.isBlank()) ? Path.of(xdg) : home.resolve(".config");
+        Path base = (xdg != null && !xdg.trim().isEmpty()) ? Paths.get(xdg) : home.resolve(".config");
         return base.resolve("unisettings");
     }
 }

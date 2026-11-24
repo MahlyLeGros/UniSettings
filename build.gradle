@@ -1,6 +1,35 @@
 plugins {
+    // Loom, l'outil Fabric. Deux variantes du même plugin :
+    //  - fabric-loom-remap : Minecraft 1.14.4 à 1.21.11 (code "obfusqué", il faut le renommer)
+    //  - fabric-loom       : Minecraft 26.1 et plus (Mojang ne brouille plus le code)
     // see https://fabricmc.net/develop/ for new versions
-    id 'fabric-loom' version '1.8-SNAPSHOT' apply false
+    id 'net.fabricmc.fabric-loom-remap' version "${loom_version}" apply false
+    id 'net.fabricmc.fabric-loom' version "${loom_version}" apply false
     // see https://projects.neoforged.net/neoforged/moddevgradle for new versions
-    id 'net.neoforged.moddev' version '2.0.49-beta' apply false
+    id 'net.neoforged.moddev' version '2.0.148' apply false
 }
+
+// ---------------------------------------------------------------------------------------------
+// Choix de la version de Minecraft visée.
+//
+//   ./gradlew build                  -> les réglages par défaut de gradle.properties (minecraft_version)
+//   ./gradlew build -Pmc=1.20.1      -> compile contre Minecraft 1.20.1 (utilisé par la CI pour
+//                                       vérifier toutes les versions une par une)
+//
+// Le mod ne produit que DEUX jars, un par "famille" de Minecraft :
+//   - 1.14.4 à 1.21.11 : un seul jar, car Fabric donne aux classes de Minecraft des noms
+//     ("intermediary") qui ne changent pas d'une version à l'autre.
+//   - 26.1 et plus     : un jar à part, car Minecraft n'est plus obfusqué et Fabric ne renomme plus rien.
+// ---------------------------------------------------------------------------------------------
+def mc = (findProperty('mc') ?: minecraft_version).toString()
+def unobfuscated = !mc.startsWith('1.')
+
+ext.mc = mc
+ext.unobfuscated = unobfuscated
+ext.family = unobfuscated ? 'mc26' : 'mc1'
+// Version de Java du bytecode du mod. Java 8 pour que le jar marche jusqu'à Minecraft 1.14.
+ext.target_java = unobfuscated ? 21 : 8
+ext.mixin_compat = unobfuscated ? 'JAVA_21' : 'JAVA_8'
+ext.minecraft_dependency = unobfuscated ? mc26_range : mc1_range
+ext.fabric_loader_min = unobfuscated ? mc26_fabric_loader_min : mc1_fabric_loader_min
+ext.family_label = unobfuscated ? mc26_label : mc1_label
