@@ -2,8 +2,14 @@ name: Build
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+# Un nouveau commit annule la vérification en cours de la même branche
+concurrency:
+  group: build-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 # Java 25 : il en faut au moins 25 pour compiler contre Minecraft 26.x.
 env:
