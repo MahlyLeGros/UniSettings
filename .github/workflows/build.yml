@@ -175,6 +175,7 @@ jobs:
           path: jars
       - run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri
       - run: pip install "portablemc>=4.4,<5"
+      - run: python3 .github/scripts/patch_portablemc.py
       - name: Lancer Minecraft ${{ matrix.mc }} avec ${{ matrix.spec }}
         run: |
           jar=$(ls jars/*.jar | head -1)
