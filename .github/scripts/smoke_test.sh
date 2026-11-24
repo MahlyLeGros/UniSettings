@@ -67,6 +67,17 @@ kill "$GAME" 2>/dev/null || true
 echo "----- Lignes UniSettings / erreurs du journal -----"
 grep -aiE "unisettings|mixin.*(error|fail)|exception" "$LOG" | head -50 || true
 
+# Cas particulier : l'écran virtuel de la CI n'offre pas l'OpenGL demandé par certaines versions
+# (Forge 26.3 : "Couldn't find matching GLX visual"). Le jeu s'arrête alors avant d'avoir construit
+# les mods, mais APRÈS avoir lu options.txt : si le profil a été chargé, ce qu'on teste est vérifié.
+glx_only=""
+if [ -z "$ok" ] && grep -qs "depuis le profil" "$LOG" "$WORK/game/logs/latest.log" \
+   && grep -qs "Failed to create backend OpenGL" "$LOG" "$WORK/game/logs/latest.log"; then
+  echo "ATTENTION : pas d'OpenGL dans l'écran virtuel, le jeu s'est arrêté après le chargement du profil."
+  ok=1
+  glx_only=1
+fi
+
 if [ -z "$ok" ]; then
   echo "----- Fin du journal -----"
   tail -80 "$LOG"
@@ -82,7 +93,7 @@ if [ -z "$ok" ]; then
   echo "ÉCHEC : Minecraft $MC ($SPEC) n'a pas chargé le profil UniSettings"
   exit 1
 fi
-if [ "$LOADER" = fabric ]; then
+if [ "$LOADER" = fabric ] && [ -z "$glx_only" ]; then
   case "$MC" in
     1.*) expected="variante 1.14.4-1.21.11" ;;
     *)   expected="variante 26.x" ;;
