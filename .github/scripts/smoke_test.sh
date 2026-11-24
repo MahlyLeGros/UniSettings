@@ -27,7 +27,7 @@ GAME=$!
 
 ok=""
 for _ in $(seq 1 120); do   # jusqu'à 10 minutes (téléchargement compris)
-  if grep -q "depuis le profil" "$LOG" && grep -q "UniSettings charg" "$LOG"; then
+  if grep -q "depuis le profil" "$LOG" && grep -q "UniSettings charg" "$LOG" && grep -q "variante" "$LOG"; then
     ok=1
     break
   fi
@@ -48,6 +48,14 @@ if [ -z "$ok" ]; then
   echo "----- Fin du journal -----"
   tail -80 "$LOG"
   echo "ÉCHEC : Minecraft $MC n'a pas chargé le profil UniSettings"
+  exit 1
+fi
+case "$MC" in
+  1.*) expected="variante 1.14.4-1.21.11" ;;
+  *)   expected="variante 26.x" ;;
+esac
+if ! grep -q "$expected" "$LOG"; then
+  echo "ÉCHEC : le mod n'a pas choisi la bonne variante (attendu : $expected)"
   exit 1
 fi
 if ! grep -q "unisettingsSmokeTest:ok" "$WORK/game/options.txt" && ! grep -q "fov:0.75" "$WORK/game/options.txt"; then

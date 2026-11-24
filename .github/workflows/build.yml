@@ -28,7 +28,7 @@ jobs:
         run: python3 .github/scripts/mc_versions.py
 
   jars:
-    name: Jars du mod + tests
+    name: Jar unique + tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,17 +40,17 @@ jobs:
         with:
           cache-read-only: false
       - run: chmod +x gradlew
-      # Jar 1 : Minecraft 1.14.4 à 1.21.11 (plus tests du code commun)
+      # Passe 1 : Minecraft 1.14.4 à 1.21.11 (plus tests du code commun)
       - run: ./gradlew build || ./gradlew build
-      # Jar 2 : Minecraft 26.1 et plus
+      # Passe 2 : Minecraft 26.1 et plus
       - run: ./gradlew :fabric:build -Pmc=26.1 || ./gradlew :fabric:build -Pmc=26.1
+      # Le jar unique qui contient les deux
+      - run: ./gradlew universalJar
+      - run: unzip -l build/libs/*.jar
       - uses: actions/upload-artifact@v4
         with:
           name: unisettings-fabric
-          path: |
-            fabric/build/libs/*.jar
-            !fabric/build/libs/*-sources.jar
-            !fabric/build/libs/*-javadoc.jar
+          path: build/libs/*.jar
 
   compile:
     name: Compile ${{ matrix.mc }}
@@ -92,7 +92,7 @@ jobs:
           path: targets/
 
   same-jar:
-    name: Un seul jar pour 1.14.4 à 1.21.11 ?
+    name: Mêmes noms internes de 1.14.4 à 1.21.11 ?
     needs: compile
     runs-on: ubuntu-latest
     steps:
@@ -133,7 +133,6 @@ jobs:
       - run: pip install "portablemc>=4.4,<5"
       - name: Lancer Minecraft ${{ matrix.mc }}
         run: |
-          if [[ "${{ matrix.mc }}" == 1.* ]]; then pattern='1.14.4-1.21.11'; else pattern='26.x'; fi
-          jar=$(ls jars/*.jar | grep -- "$pattern" | head -1)
+          jar=$(ls jars/*.jar | head -1)
           echo "Jar testé : $jar"
           .github/scripts/smoke_test.sh "${{ matrix.mc }}" "$jar"

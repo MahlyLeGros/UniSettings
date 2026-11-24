@@ -2,10 +2,12 @@
   "required": false,
   "minVersion": "0.8",
   "package": "io.github.mahlylegros.unisettings.mixin",
+  "plugin": "io.github.mahlylegros.unisettings.UniSettingsMixinPlugin",
   "compatibilityLevel": "${mixin_compat}",
   "mixins": [],
   "client": [
-    "OptionsMixin"
+    "OptionsMixin",
+    "modern.OptionsMixin"
   ],
   "server": [],
   "injectors": {

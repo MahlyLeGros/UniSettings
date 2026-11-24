@@ -15,6 +15,9 @@ import java.io.File;
  * Branche la synchro sur Minecraft : on applique le profil juste avant que le jeu lise
  * options.txt, et on met le profil à jour juste après chaque sauvegarde des réglages.
  * Ce mixin vit dans le code commun, donc il marchera aussi sur NeoForge plus tard.
+ * <p>
+ * Version Minecraft 1.14.4 à 1.21.11. Une copie identique existe dans {@code mixin.modern}
+ * pour 26.x : si tu modifies ce fichier, modifie l'autre pareil.
  */
 @Mixin(Options.class)
 public abstract class OptionsMixin {
