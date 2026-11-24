@@ -25,10 +25,36 @@ public final class Services {
             services = ServiceLoader.load(clazz).iterator();
         }
         if (!services.hasNext()) {
+            // Dernier recours (Forge 1.15) : le chargeur de classes ne sait pas lire META-INF/services,
+            // on essaie donc directement les implémentations connues.
+            T known = loadKnown(clazz);
+            if (known != null) {
+                return known;
+            }
             throw new NullPointerException("Failed to load service for " + clazz.getName());
         }
         final T loadedService = services.next();
         Constants.LOG.debug("Loaded {} for service {}", loadedService, clazz);
         return loadedService;
+    }
+
+    /** Les implémentations de chaque loader, au cas où ServiceLoader ne les trouve pas. */
+    private static final String[] KNOWN_IMPLEMENTATIONS = {
+            "io.github.mahlylegros.unisettings.platform.ForgePlatformHelper",
+            "io.github.mahlylegros.unisettings.platform.FabricPlatformHelper"
+    };
+
+    private static <T> T loadKnown(Class<T> clazz) {
+        for (String name : KNOWN_IMPLEMENTATIONS) {
+            try {
+                Class<?> implementation = Class.forName(name, true, Services.class.getClassLoader());
+                if (clazz.isAssignableFrom(implementation)) {
+                    return clazz.cast(implementation.getDeclaredConstructor().newInstance());
+                }
+            } catch (Throwable ignored) {
+                // Pas ce loader-là
+            }
+        }
+        return null;
     }
 }

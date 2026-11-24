@@ -37,7 +37,7 @@ if [ "$LOADER" = fabric ]; then
 fi
 found_all() {
   for text in "${expect[@]}"; do
-    grep -q "$text" "$LOG" || return 1
+    grep -qs "$text" "$LOG" "$WORK/game/logs/latest.log" "$WORK/game/logs/debug.log" || return 1
   done
 }
 
