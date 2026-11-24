@@ -17,8 +17,13 @@ public final class Services {
     private Services() {}
 
     public static <T> T load(Class<T> clazz) {
+        // On cherche d'abord avec le chargeur de classes du mod lui-même : sous Forge 1.15/1.16,
+        // le chargeur "par défaut" du thread ne voit pas les fichiers du mod.
         // Écrit sans findFirst() (Java 9+) pour rester compatible avec Java 8 (Minecraft 1.14 à 1.16).
-        Iterator<T> services = ServiceLoader.load(clazz).iterator();
+        Iterator<T> services = ServiceLoader.load(clazz, Services.class.getClassLoader()).iterator();
+        if (!services.hasNext()) {
+            services = ServiceLoader.load(clazz).iterator();
+        }
         if (!services.hasNext()) {
             throw new NullPointerException("Failed to load service for " + clazz.getName());
         }
