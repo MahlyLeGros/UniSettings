@@ -18,8 +18,12 @@ import xml.etree.ElementTree as ElementTree
 MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
 OLDEST = (1, 14, 4)  # premières mappings officielles de Mojang
 POPULAR = {"1.16.5", "1.20.1", "1.21.1", "26.1"}
+# Lancées en plus avec Forge/NeoForge : la dernière version de NeoForge qui utilise encore
+# les noms "m_92140_" (avant le passage aux noms officiels de Mojang)
+LOADER_EXTRA = {"1.20.4"}
 
 FORGE_METADATA = "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml"
+FORGE_PROMOTIONS = "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json"
 NEOFORGE_METADATA = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
 # NeoForge pour Minecraft 1.20.1 : c'était encore une copie de Forge, publiée sous un autre nom
 NEOFORGE_1201_METADATA = "https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml"
@@ -43,7 +47,9 @@ def loader_key(version):
 
 def maven_versions(url):
     try:
-        with urllib.request.urlopen(url, timeout=60) as response:
+        # Le dépôt de Forge refuse (403) les requêtes sans "User-Agent" de navigateur ou d'outil connu
+        request = urllib.request.Request(url, headers={"User-Agent": "UniSettings-CI (GitHub Actions)"})
+        with urllib.request.urlopen(request, timeout=60) as response:
             root = ElementTree.parse(response).getroot()
         return [v.text for v in root.iter("version")]
     except Exception as error:  # un dépôt en panne ne doit pas bloquer les autres tests
@@ -73,7 +79,7 @@ def pick(builds, oldest):
     latest_mc_of_minor = {}
     for mc in sorted(latest_build, key=parse):
         latest_mc_of_minor[parse(mc)[:2]] = mc
-    chosen = set(latest_mc_of_minor.values()) | {mc for mc in latest_build if mc in POPULAR}
+    chosen = set(latest_mc_of_minor.values()) | {mc for mc in latest_build if mc in POPULAR | LOADER_EXTRA}
     if latest_build:
         chosen.add(min(latest_build, key=parse))
     return [(mc, latest_build[mc]) for mc in sorted(chosen, key=parse)]
@@ -106,6 +112,18 @@ for version in maven_versions(FORGE_METADATA):
     mc, _, build = version.partition("-")
     if mc in known and build:
         forge_builds.setdefault(mc, []).append(version)
+if not forge_builds:
+    # Plan B : la liste courte des "derniers builds" publiée par Forge
+    try:
+        request = urllib.request.Request(FORGE_PROMOTIONS, headers={"User-Agent": "UniSettings-CI (GitHub Actions)"})
+        with urllib.request.urlopen(request, timeout=60) as response:
+            promos = json.load(response)["promos"]
+        for key, build in promos.items():
+            mc, _, kind = key.rpartition("-")
+            if mc in known and kind == "latest":
+                forge_builds.setdefault(mc, []).append(mc + "-" + build)
+    except Exception as error:
+        print("Impossible de lire", FORGE_PROMOTIONS, ":", error)
 
 # NeoForge : "20.4.237" pour Minecraft 1.20.4 (et "1.20.1-47.1.x" pour la 1.20.1)
 neoforge_builds = {}
