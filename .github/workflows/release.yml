@@ -41,7 +41,7 @@ jobs:
           cp build/libs/*.jar dist/
           ls forge/build/libs/*.jar | grep -v -e sources -e javadoc | xargs -I{} cp {} dist/
           ls -l dist
-          test "$(ls dist | wc -l)" -eq 2
+          test "$(ls dist | wc -l)" -eq 3
       - name: Notes de version
         env:
           NOTES: ${{ inputs.notes }}
