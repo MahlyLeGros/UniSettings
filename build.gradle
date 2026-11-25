@@ -1,6 +1,79 @@
 plugins {
+    // Loom, l'outil Fabric. Deux variantes du même plugin :
+    //  - fabric-loom-remap : Minecraft 1.14.4 à 1.21.11 (code "obfusqué", il faut le renommer)
+    //  - fabric-loom       : Minecraft 26.1 et plus (Mojang ne brouille plus le code)
     // see https://fabricmc.net/develop/ for new versions
-    id 'fabric-loom' version '1.8-SNAPSHOT' apply false
+    id 'net.fabricmc.fabric-loom-remap' version "${loom_version}" apply false
+    id 'net.fabricmc.fabric-loom' version "${loom_version}" apply false
     // see https://projects.neoforged.net/neoforged/moddevgradle for new versions
-    id 'net.neoforged.moddev' version '2.0.49-beta' apply false
+    id 'net.neoforged.moddev' version '2.0.148' apply false
+}
+
+// ---------------------------------------------------------------------------------------------
+// Choix de la version de Minecraft visée.
+//
+//   ./gradlew build                  -> compile contre minecraft_version (gradle.properties)
+//   ./gradlew build -Pmc=1.20.1      -> compile contre Minecraft 1.20.1 (utilisé par la CI pour
+//                                       vérifier toutes les versions une par une)
+//
+// Le jar final est UNIQUE pour toutes les versions (1.14.4 et plus), mais il se fabrique en
+// deux passes, car Minecraft a changé en 26.1 :
+//   - 1.14.4 à 1.21.11 : le jeu est obfusqué, Loom renomme le mod vers les noms internes
+//     de Fabric ("intermediary"), qui ne changent pas d'une version à l'autre ;
+//   - 26.1 et plus     : le jeu n'est plus obfusqué, Loom ne renomme rien.
+// La tâche universalJar (plus bas) assemble les deux passes :
+//
+//   ./gradlew build                      # passe 1 : 1.14.4 à 1.21.11 (+ tests)
+//   ./gradlew :fabric:build -Pmc=26.1    # passe 2 : 26.x
+//   ./gradlew universalJar               # jar unique dans build/libs/
+// ---------------------------------------------------------------------------------------------
+def mc = (findProperty('mc') ?: minecraft_version).toString()
+def unobfuscated = !mc.startsWith('1.')
+
+ext.mc = mc
+ext.unobfuscated = unobfuscated
+// Bytecode Java 8 pour que le jar tourne jusqu'à Minecraft 1.14.
+ext.target_java = 8
+ext.mixin_compat = 'JAVA_8'
+ext.family_label = unobfuscated ? 'pass-26.x' : 'pass-1.x'
+
+def passJar = { String label -> file("fabric/build/libs/${mod_id}-fabric-${label}-${version}.jar") }
+def modernMixins = 'io/github/mahlylegros/unisettings/mixin/modern/**'
+
+tasks.register('universalJar', Jar) {
+    group = 'build'
+    description = 'Assemble le jar unique (toutes les versions) à partir des deux passes.'
+    def legacy = passJar('pass-1.x')
+    def modern = passJar('pass-26.x')
+    inputs.files(legacy, modern)
+    doFirst {
+        [legacy, modern].each {
+            if (!it.exists()) {
+                throw new GradleException("Il manque ${it.name} : lance d'abord ./gradlew build puis ./gradlew :fabric:build -Pmc=26.1")
+            }
+        }
+    }
+    // Tout vient de la passe 1.x, sauf la variante "modern" du mixin qui vient de la passe 26.x
+    // (non renommée). Le manifeste de Loom n'est pas repris : il annonce les noms "intermediary",
+    // ce qui serait faux pour la variante 26.x.
+    from(zipTree(legacy)) {
+        exclude modernMixins
+        exclude 'META-INF/MANIFEST.MF'
+    }
+    from(zipTree(modern)) {
+        include modernMixins
+    }
+    manifest {
+        attributes([
+                'Specification-Title'   : mod_name,
+                'Specification-Vendor'  : mod_author,
+                'Specification-Version' : version,
+                'Implementation-Title'  : 'fabric',
+                'Implementation-Version': version,
+                'Implementation-Vendor' : mod_author
+        ])
+    }
+    archiveFileName = "${mod_id}-fabric-${version}.jar"
+    destinationDirectory = layout.buildDirectory.dir('libs')
+    duplicatesStrategy = DuplicatesStrategy.FAIL
 }

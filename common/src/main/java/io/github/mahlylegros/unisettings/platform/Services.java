@@ -3,6 +3,7 @@ package io.github.mahlylegros.unisettings.platform;
 import io.github.mahlylegros.unisettings.Constants;
 import io.github.mahlylegros.unisettings.platform.services.IPlatformHelper;
 
+import java.util.Iterator;
 import java.util.ServiceLoader;
 
 /**
@@ -16,9 +17,12 @@ public final class Services {
     private Services() {}
 
     public static <T> T load(Class<T> clazz) {
-        final T loadedService = ServiceLoader.load(clazz)
-                .findFirst()
-                .orElseThrow(() -> new NullPointerException("Failed to load service for " + clazz.getName()));
+        // Écrit sans findFirst() (Java 9+) pour rester compatible avec Java 8 (Minecraft 1.14 à 1.16).
+        Iterator<T> services = ServiceLoader.load(clazz).iterator();
+        if (!services.hasNext()) {
+            throw new NullPointerException("Failed to load service for " + clazz.getName());
+        }
+        final T loadedService = services.next();
         Constants.LOG.debug("Loaded {} for service {}", loadedService, clazz);
         return loadedService;
     }

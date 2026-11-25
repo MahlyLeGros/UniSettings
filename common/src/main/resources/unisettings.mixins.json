@@ -1,15 +1,16 @@
 {
-  "required": true,
+  "required": false,
   "minVersion": "0.8",
   "package": "io.github.mahlylegros.unisettings.mixin",
-  "refmap": "${mod_id}.refmap.json",
-  "compatibilityLevel": "JAVA_18",
+  "plugin": "io.github.mahlylegros.unisettings.UniSettingsMixinPlugin",
+  "compatibilityLevel": "${mixin_compat}",
   "mixins": [],
   "client": [
-    "OptionsMixin"
+    "OptionsMixin",
+    "modern.OptionsMixin"
   ],
   "server": [],
   "injectors": {
-    "defaultRequire": 1
+    "defaultRequire": 0
   }
 }

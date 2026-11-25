@@ -2,21 +2,137 @@ name: Build
 
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+# Un nouveau commit annule la vérification en cours de la même branche
+concurrency:
+  group: build-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+# Java 25 : il en faut au moins 25 pour compiler contre Minecraft 26.x.
+env:
+  JAVA_VERSION: 25
 
 jobs:
-  build:
+  versions:
+    name: Liste des versions de Minecraft
+    runs-on: ubuntu-latest
+    outputs:
+      all: ${{ steps.list.outputs.all }}
+      smoke: ${{ steps.list.outputs.smoke }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: python3 .github/scripts/mc_versions.py
+
+  jars:
+    name: Jar unique + tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: ${{ env.JAVA_VERSION }}
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
       - run: chmod +x gradlew
-      - run: ./gradlew build
+      # Passe 1 : Minecraft 1.14.4 à 1.21.11 (plus tests du code commun)
+      - run: ./gradlew build || ./gradlew build
+      # Passe 2 : Minecraft 26.1 et plus
+      - run: ./gradlew :fabric:build -Pmc=26.1 || ./gradlew :fabric:build -Pmc=26.1
+      # Le jar unique qui contient les deux
+      - run: ./gradlew universalJar
+      - run: unzip -l build/libs/*.jar
       - uses: actions/upload-artifact@v4
         with:
           name: unisettings-fabric
-          path: fabric/build/libs/*.jar
+          path: build/libs/*.jar
+
+  compile:
+    name: Compile ${{ matrix.mc }}
+    # Après "jars", pour réutiliser son cache Gradle : sinon des dizaines de jobs téléchargent
+    # les mêmes dépendances en même temps et Maven Central répond "429 Too Many Requests".
+    needs: [versions, jars]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        mc: ${{ fromJson(needs.versions.outputs.all) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+      - run: chmod +x gradlew
+      # 2e essai si un dépôt Maven a un raté réseau
+      - run: ./gradlew :fabric:assemble -Pmc=${{ matrix.mc }} -x javadoc || (sleep 30 && ./gradlew :fabric:assemble -Pmc=${{ matrix.mc }} -x javadoc)
+      # Pour 1.14.4 à 1.21.11 : Loom écrit dans le mixin les noms internes de Fabric ("intermediary")
+      # des éléments visés. S'ils sont identiques pour toutes ces versions, le même jar marche partout.
+      - name: Noms visés par le mixin
+        if: startsWith(matrix.mc, '1.')
+        run: |
+          mkdir -p targets
+          jar=$(ls fabric/build/libs/*.jar | grep -v -e sources -e javadoc | head -1)
+          javap -v -p -cp "$jar" io.github.mahlylegros.unisettings.mixin.OptionsMixin \
+            | grep -E '= Utf8 .*(class|field|method)_[0-9]+' | sed 's/.*= Utf8 *//' | sort -u > "targets/${{ matrix.mc }}.txt"
+          cat "targets/${{ matrix.mc }}.txt"
+      - if: startsWith(matrix.mc, '1.')
+        uses: actions/upload-artifact@v4
+        with:
+          name: targets-${{ matrix.mc }}
+          path: targets/
+
+  same-jar:
+    name: Mêmes noms internes de 1.14.4 à 1.21.11 ?
+    needs: compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: targets-*
+          path: targets
+          merge-multiple: true
+      - run: |
+          ls targets
+          ref=targets/1.21.11.txt
+          grep -q "field_" "$ref" && grep -q "method_" "$ref" || { echo "Noms introuvables"; cat "$ref"; exit 1; }
+          status=0
+          for f in targets/*.txt; do
+            if ! diff -u "$ref" "$f"; then
+              echo "::error::Minecraft $(basename "$f" .txt) vise d'autres noms que 1.21.11"
+              status=1
+            fi
+          done
+          exit $status
+
+  smoke:
+    name: Lancement réel ${{ matrix.mc }}
+    needs: [versions, jars]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        mc: ${{ fromJson(needs.versions.outputs.smoke) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: unisettings-fabric
+          path: jars
+      - run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri
+      - run: pip install "portablemc>=4.4,<5"
+      - name: Lancer Minecraft ${{ matrix.mc }}
+        run: |
+          jar=$(ls jars/*.jar | head -1)
+          echo "Jar testé : $jar"
+          .github/scripts/smoke_test.sh "${{ matrix.mc }}" "$jar"

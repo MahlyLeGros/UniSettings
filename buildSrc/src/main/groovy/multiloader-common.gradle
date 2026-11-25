@@ -4,13 +4,22 @@ plugins {
 }
 
 base {
-    archivesName = "${mod_id}-${project.name}-${minecraft_version}"
+    archivesName = "${mod_id}-${project.name}-${family_label}"
 }
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(java_version)
     withSourcesJar()
     withJavadocJar()
+    // Sinon Gradle refuse les dépendances (Minecraft, NeoForm...) "pour Java 21" alors que
+    // notre bytecode vise Java 8.
+    disableAutoTargetJvm()
+}
+
+// Le JDK est récent (java_version), mais le bytecode du mod vise une vieille version de Java
+// (target_java, voir build.gradle à la racine) pour tourner sur toutes les versions de Minecraft.
+tasks.named('compileJava', JavaCompile) {
+    options.release = target_java as int
 }
 
 repositories {
@@ -49,7 +58,7 @@ repositories {
 ['apiElements', 'runtimeElements', 'sourcesElements', 'javadocElements'].each { variant ->
     configurations."$variant".outgoing {
         capability("$group:${base.archivesName.get()}:$version")
-        capability("$group:$mod_id-${project.name}-${minecraft_version}:$version")
+        capability("$group:$mod_id-${project.name}-${family_label}:$version")
         capability("$group:$mod_id:$version")
     }
     publishing.publications.configureEach {
@@ -76,7 +85,7 @@ jar {
                 'Implementation-Title'  : project.name,
                 'Implementation-Version': project.jar.archiveVersion,
                 'Implementation-Vendor' : mod_author,
-                'Built-On-Minecraft'    : minecraft_version
+                'Built-On-Minecraft'    : mc
         ])
     }
 }
@@ -85,9 +94,11 @@ processResources {
     var expandProps = [
             'version'                      : version,
             'group'                        : project.group, //Else we target the task's group.
-            'minecraft_version'            : minecraft_version,
-            'minecraft_version_range'      : minecraft_version_range,
-            'fabric_version'               : fabric_version,
+            'minecraft_version'            : mc,
+            'minecraft_dependency'         : minecraft_dependency,
+            'fabric_loader_min'            : fabric_loader_min,
+            'mixin_compat'                 : mixin_compat,
+            'target_java'                  : target_java,
             'fabric_loader_version'        : fabric_loader_version,
             'mod_name'                     : mod_name,
             'mod_author'                   : mod_author,
