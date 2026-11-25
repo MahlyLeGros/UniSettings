@@ -20,13 +20,13 @@ et chaque instance le charge au lancement.
 
 ## Versions
 
-Deux jars, chacun valable pour toutes les versions de Minecraft qu'il couvre :
+Trois jars, chacun valable pour toutes les versions de Minecraft qu'il couvre :
 
 | Jar | Loader | Minecraft |
 | --- | --- | --- |
 | `unisettings-fabric-<version>.jar` | Fabric | 1.14.4 et plus, y compris 26.x |
-| `unisettings-forge-neoforge-<version>.jar` | Forge | 1.15.2 et plus, y compris 26.x |
-| | NeoForge | toutes ses versions (1.20.1 et plus, y compris 26.x) |
+| `unisettings-forge-<version>.jar` | Forge | 1.15.2 et plus, y compris 26.x |
+| `unisettings-neoforge-<version>.jar` | NeoForge | toutes ses versions (1.20.1 et plus, y compris 26.x) |
 
 ### Fabric
 

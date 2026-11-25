@@ -2,13 +2,17 @@ plugins {
     id 'multiloader-common'
 }
 
-// Un seul jar pour Forge ET NeoForge, de Minecraft 1.15.2 à 26.x.
+// Deux jars fabriqués à partir du même code :
+//   unisettings-forge-<v>.jar     Forge, Minecraft 1.15.2 à 26.x
+//   unisettings-neoforge-<v>.jar  NeoForge, Minecraft 1.20.1 à 26.x
+// Ils ne diffèrent que par les fichiers de description du mod (META-INF/*.toml). Deux jars
+// plutôt qu'un pour que chaque page (Modrinth, CurseForge...) annonce le bon loader et les bonnes versions.
 //
 // Contrairement au module fabric, on ne compile PAS contre Minecraft : le mixin vise le jeu
 // par des noms écrits en toutes lettres (voir forge/mixin/OptionsMixin), et le reste du code
 // commun ne dépend que de Java. Le jar ne dépend donc d'aucune version précise du jeu.
 base {
-    archivesName = "${mod_id}-forge-neoforge"
+    archivesName = "${mod_id}-forge"
 }
 
 // Le code commun (ProfileSync, UniSettings...) est compilé dans ce jar, sauf les mixins
@@ -40,14 +44,42 @@ tasks.named('compileStubsJava', JavaCompile) {
     options.release = target_java as int
 }
 
+def loaderManifest = { String loader ->
+    [
+            // Forge (et NeoForge 1.20.1) trouvent le mixin grâce à cette ligne
+            'MixinConfigs'          : "${mod_id}.forge.mixins.json",
+            'Automatic-Module-Name' : mod_id,
+            'Implementation-Title'  : loader,
+            'Built-On-Minecraft'    : 'any'
+    ]
+}
+
+// Jar Forge : seulement mods.toml (neoforge.mods.toml n'est lu que par NeoForge)
 jar {
+    exclude 'META-INF/neoforge.mods.toml'
     manifest {
-        attributes([
-                // Forge (et NeoForge 1.20.1) trouvent le mixin grâce à cette ligne
-                'MixinConfigs'          : "${mod_id}.forge.mixins.json",
-                'Automatic-Module-Name' : mod_id,
-                'Implementation-Title'  : 'forge-neoforge',
-                'Built-On-Minecraft'    : 'any'
-        ])
+        attributes(loaderManifest('forge'))
     }
 }
+
+// Jar NeoForge : mods.toml pour NeoForge 1.20.1 à 1.20.4, neoforge.mods.toml pour 1.20.5 et plus
+def neoforgeJar = tasks.register('neoforgeJar', Jar) {
+    group = 'build'
+    description = 'Assemble le jar NeoForge.'
+    archiveBaseName = "${mod_id}-neoforge"
+    from sourceSets.main.output
+    from(rootProject.file('LICENSE')) {
+        rename { "${it}_${mod_name}" }
+    }
+    manifest {
+        attributes([
+                'Specification-Title'   : mod_name,
+                'Specification-Vendor'  : mod_author,
+                'Specification-Version' : archiveVersion,
+                'Implementation-Version': archiveVersion,
+                'Implementation-Vendor' : mod_author
+        ])
+        attributes(loaderManifest('neoforge'))
+    }
+}
+tasks.named('assemble') { dependsOn neoforgeJar }

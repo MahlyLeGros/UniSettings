@@ -5,7 +5,7 @@
 #   smoke_test.sh <version de Minecraft> <jar du mod> [fabric|forge|neoforge] [version pour portablemc]
 #
 # Exemples : smoke_test.sh 1.20.1 unisettings-fabric.jar
-#            smoke_test.sh 1.20.1 unisettings-forge-neoforge.jar forge forge:1.20.1-47.4.10
+#            smoke_test.sh 1.20.1 unisettings-forge.jar forge forge:1.20.1-47.4.10
 set -euo pipefail
 
 MC="$1"
