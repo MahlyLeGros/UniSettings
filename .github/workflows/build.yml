@@ -22,6 +22,7 @@ jobs:
     outputs:
       all: ${{ steps.list.outputs.all }}
       smoke: ${{ steps.list.outputs.smoke }}
+      forge: ${{ steps.list.outputs.forge }}
     steps:
       - uses: actions/checkout@v4
       - id: list
@@ -51,6 +52,26 @@ jobs:
         with:
           name: unisettings-fabric
           path: build/libs/*.jar
+      # Le jar Forge + NeoForge (fabriqué par la passe 1) : il ne doit contenir ni le code propre
+      # à Fabric, ni les fausses annotations @Mod qui servent seulement à compiler.
+      - name: Vérifier le jar Forge + NeoForge
+        run: |
+          jar=$(ls forge/build/libs/*.jar | grep -v -e sources -e javadoc)
+          unzip -l "$jar"
+          if unzip -l "$jar" | grep -E "net/minecraftforge/|net/neoforged/|unisettings/mixin/|UniSettingsMixinPlugin|unisettings.mixins.json"; then
+            echo "::error::Le jar Forge + NeoForge contient des fichiers qu'il ne devrait pas avoir"
+            exit 1
+          fi
+          unzip -p "$jar" META-INF/MANIFEST.MF | grep "MixinConfigs: unisettings.forge.mixins.json"
+          unzip -p "$jar" META-INF/mods.toml | grep 'modId="unisettings"'
+          unzip -p "$jar" META-INF/neoforge.mods.toml | grep 'modId="unisettings"'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unisettings-forge-neoforge
+          path: |
+            forge/build/libs/*.jar
+            !forge/build/libs/*-sources.jar
+            !forge/build/libs/*-javadoc.jar
 
   compile:
     name: Compile ${{ matrix.mc }}
@@ -136,3 +157,27 @@ jobs:
           jar=$(ls jars/*.jar | head -1)
           echo "Jar testé : $jar"
           .github/scripts/smoke_test.sh "${{ matrix.mc }}" "$jar"
+
+  smoke-forge:
+    name: Lancement réel ${{ matrix.loader }} ${{ matrix.mc }}
+    needs: [versions, jars]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.versions.outputs.forge) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: unisettings-forge-neoforge
+          path: jars
+      - run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri
+      - run: pip install "portablemc>=4.4,<5"
+      - run: python3 .github/scripts/patch_portablemc.py
+      - name: Lancer Minecraft ${{ matrix.mc }} avec ${{ matrix.spec }}
+        run: |
+          jar=$(ls jars/*.jar | head -1)
+          echo "Jar testé : $jar"
+          .github/scripts/smoke_test.sh "${{ matrix.mc }}" "$jar" "${{ matrix.loader }}" "${{ matrix.spec }}"

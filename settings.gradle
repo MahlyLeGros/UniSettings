@@ -46,3 +46,4 @@ plugins {
 rootProject.name = 'UniSettings'
 include('common')
 include('fabric')
+include('forge')

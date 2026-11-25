@@ -1,0 +1,20 @@
+# Lu par Forge (Minecraft 1.15.2 à 26.x) et par NeoForge 1.20.1 à 1.20.4.
+# Les versions récentes de NeoForge lisent neoforge.mods.toml (à côté) à la place.
+modLoader="javafml"
+loaderVersion="[1,)"
+license="${license}"
+issueTrackerURL="https://github.com/MahlyLeGros/UniSettings/issues"
+
+[[mods]]
+modId="${mod_id}"
+version="${version}"
+displayName="${mod_name}"
+authors="${mod_author}"
+description='''${description}'''
+# Le mod ne concerne que le client : un serveur peut l'avoir ou pas, ça ne change rien.
+displayTest="IGNORE_ALL_VERSION"
+
+# Le mixin (le code qui se branche sur Minecraft). Forge le trouve via l'attribut MixinConfigs
+# du manifeste du jar ; NeoForge 1.20.2 à 1.20.4 le trouve ici.
+[[mixins]]
+config="${mod_id}.forge.mixins.json"

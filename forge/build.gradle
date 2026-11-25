@@ -1,0 +1,53 @@
+plugins {
+    id 'multiloader-common'
+}
+
+// Un seul jar pour Forge ET NeoForge, de Minecraft 1.15.2 à 26.x.
+//
+// Contrairement au module fabric, on ne compile PAS contre Minecraft : le mixin vise le jeu
+// par des noms écrits en toutes lettres (voir forge/mixin/OptionsMixin), et le reste du code
+// commun ne dépend que de Java. Le jar ne dépend donc d'aucune version précise du jeu.
+base {
+    archivesName = "${mod_id}-forge-neoforge"
+}
+
+// Le code commun (ProfileSync, UniSettings...) est compilé dans ce jar, sauf les mixins
+// propres à Fabric (ils visent Minecraft avec les noms de Fabric).
+sourceSets {
+    main {
+        java {
+            srcDir project(':common').file('src/main/java')
+            exclude 'io/github/mahlylegros/unisettings/mixin/**'
+            exclude 'io/github/mahlylegros/unisettings/UniSettingsMixinPlugin.java'
+        }
+        resources {
+            srcDir project(':common').file('src/main/resources')
+            exclude "${mod_id}.mixins.json"
+        }
+    }
+    // Copies minimales des annotations @Mod de Forge et NeoForge : servent à compiler, pas mises dans le jar.
+    stubs
+}
+
+dependencies {
+    compileOnly sourceSets.stubs.output
+    compileOnly group: 'org.spongepowered', name: 'mixin', version: '0.8.5'
+    // Log4j est fourni par Minecraft en jeu
+    compileOnly 'org.apache.logging.log4j:log4j-api:2.22.1'
+}
+
+tasks.named('compileStubsJava', JavaCompile) {
+    options.release = target_java as int
+}
+
+jar {
+    manifest {
+        attributes([
+                // Forge (et NeoForge 1.20.1) trouvent le mixin grâce à cette ligne
+                'MixinConfigs'          : "${mod_id}.forge.mixins.json",
+                'Automatic-Module-Name' : mod_id,
+                'Implementation-Title'  : 'forge-neoforge',
+                'Built-On-Minecraft'    : 'any'
+        ])
+    }
+}
